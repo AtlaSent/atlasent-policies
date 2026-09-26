@@ -1,0 +1,38 @@
+name: Report a policy that's wrong
+description: A policy allows something it should deny, denies something it should allow, or doesn't match its description.
+title: "Bug in <action_type>: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If the problem lets someone bypass a control in a way that could be exploited, report it privately via SECURITY.md instead.
+  - type: input
+    id: policy
+    attributes:
+      label: Policy
+      description: The file or action type.
+    validations:
+      required: true
+  - type: textarea
+    id: request
+    attributes:
+      label: Request
+      description: The actor, context and time that produce the wrong decision. A test case in `*.tests.yaml` format is ideal.
+      render: yaml
+    validations:
+      required: true
+  - type: input
+    id: expected
+    attributes:
+      label: Expected decision
+      placeholder: deny (INSUFFICIENT_APPROVALS)
+    validations:
+      required: true
+  - type: input
+    id: actual
+    attributes:
+      label: Actual decision
+      placeholder: allow
+    validations:
+      required: true

@@ -25,6 +25,19 @@ jobs:
       - name: DCO sign-off
         if: github.event_name == 'pull_request'
         run: scripts/check-dco.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Typecheck the CLI
+        run: npm run typecheck
+      - name: CLI unit tests
+        run: npm test
+      # dist/ is committed so the Action and `npx github:` need no install.
+      # Rebuild it from source and fail if the committed file differs.
+      - name: dist/ matches cli/src
+        run: npm run check-dist
       # Validate + test every policy through the bundled CLI (no network).
       - name: Validate and test every policy (offline)
         uses: ./actions/policy

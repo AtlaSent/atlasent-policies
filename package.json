@@ -2,7 +2,7 @@
   "name": "atlasent-policies",
   "version": "1.0.0",
   "private": true,
-  "description": "Starter policies for AtlaSent, plus the atlasent-policy CLI as a single bundled file.",
+  "description": "Starter policies for AtlaSent, plus the atlasent-policy CLI (source in cli/, bundled to dist/).",
   "license": "Apache-2.0",
   "type": "module",
   "bin": {
@@ -15,5 +15,19 @@
     "dist",
     "schema",
     "policies"
-  ]
+  ],
+  "scripts": {
+    "build": "node scripts/build-cli.mjs",
+    "check-dist": "node scripts/build-cli.mjs && git diff --exit-code -- dist/",
+    "test": "vitest run --config cli/vitest.config.ts",
+    "typecheck": "tsc -p cli/tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "4.0.9",
+    "@types/node": "26.5.1",
+    "esbuild": "0.28.2",
+    "js-yaml": "4.1.1",
+    "typescript": "5.5.4",
+    "vitest": "2.0.5"
+  }
 }

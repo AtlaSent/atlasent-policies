@@ -1,0 +1,49 @@
+name: Suggest a new policy
+description: Propose a policy for a control that isn't in the library yet.
+title: "New policy: <action_type>"
+labels: ["new-policy"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        You don't need to write YAML to suggest a policy. Describe the control and a maintainer or another contributor can turn it into one.
+        Want to write it yourself? Open a pull request instead; see CONTRIBUTING.md.
+        Please don't include company names, customer names, internal system names or secrets.
+  - type: input
+    id: action_type
+    attributes:
+      label: Action type
+      description: Dot-notation, lower case (for example `secrets.rotate` or `cloud.iam.role.grant`).
+      placeholder: secrets.rotate
+    validations:
+      required: true
+  - type: textarea
+    id: control
+    attributes:
+      label: What should the policy enforce?
+      description: Who may do it, when, with how many approvals, and what should be denied.
+      placeholder: |
+        Two approvals, one from security. Not on weekends. Deny during a declared incident.
+    validations:
+      required: true
+  - type: textarea
+    id: cases
+    attributes:
+      label: Example cases
+      description: A few concrete requests and the decision you'd expect (allow, deny, escalate, hold). These become the test suite.
+      placeholder: |
+        - Alice rotates a prod secret with approvals from Bob (security) and Carol -> allow
+        - Alice rotates a prod secret with no approvals -> deny
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Why it matters
+      description: The risk this control reduces, or where you've seen it needed.
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contributing
+      options:
+        - label: I'd like to open the pull request for this myself.
