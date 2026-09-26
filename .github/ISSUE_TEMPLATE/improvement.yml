@@ -1,0 +1,24 @@
+name: Suggest an improvement
+description: Tighter defaults, clearer comments, more test cases, or anything else that would make an existing policy better.
+title: "Improve <action_type>: "
+labels: ["improvement"]
+body:
+  - type: input
+    id: policy
+    attributes:
+      label: Policy
+      description: The file or action type (for example `policies/data.export.yaml`).
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggestion
+      description: What you'd change, and why.
+    validations:
+      required: true
+  - type: textarea
+    id: cases
+    attributes:
+      label: Test cases (optional)
+      description: Requests and the decision you'd expect after the change.

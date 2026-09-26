@@ -1,0 +1,29 @@
+bundle: production.deploy
+tests:
+  - name: two recent approvals incl. security, inside the window, is allowed
+    actor_id: alice
+    now: "2026-04-14T18:00:00Z"            # Tuesday, 11:00 in Los Angeles
+    context:
+      approvers:
+        - { id: bob, role: security, timestamp: "2026-04-14T17:00:00Z" }
+        - { id: carol, role: engineering, timestamp: "2026-04-14T17:30:00Z" }
+    expect: allow
+  - name: the requester approving their own deploy does not count
+    actor_id: alice
+    now: "2026-04-14T18:00:00Z"
+    context:
+      approvers:
+        - { id: bob, role: security, timestamp: "2026-04-14T17:00:00Z" }
+        - { id: alice, role: engineering, timestamp: "2026-04-14T17:30:00Z" }
+    expect: deny
+    expect_deny_code: INSUFFICIENT_APPROVALS
+  - name: Friday is outside the change window
+    actor_id: alice
+    now: "2026-04-17T18:00:00Z"
+    expect: deny
+    expect_deny_code: OUTSIDE_CHANGE_WINDOW
+  - name: holiday freeze denies
+    actor_id: alice
+    now: "2026-12-23T18:00:00Z"
+    expect: deny
+    expect_deny_code: FROZEN

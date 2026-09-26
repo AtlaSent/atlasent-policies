@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Atlasent/atlasent-policies/main/schema/policy.schema.json
+action_type: production.deploy
+description: Two approvals, business hours only, no deploys over the holidays.
+rules:
+  deny_actors:
+    - github:actions-bot-compromised
+  change_window:
+    timezone: America/Los_Angeles
+    days_of_week: [1, 2, 3, 4]        # Mon–Thu (0 = Sunday)
+    hours: { start: "09:00", end: "17:00" }
+  freeze_windows:
+    - name: holiday-freeze
+      date_ranges: [{ start: "2026-12-22", end: "2026-12-31" }]
+  require_approvals:
+    count: 2
+    required_roles: [{ role: security, count: 1 }]
+    exclude_actor: true               # the requester can't approve their own deploy
+    max_age_seconds: 86400
+  templates:
+    - decision: allow

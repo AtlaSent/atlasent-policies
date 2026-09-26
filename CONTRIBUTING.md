@@ -24,12 +24,38 @@ person, or that claim compliance with a specific regulation.
 4. **It passes:**
 
    ```sh
-   atlasent-policy validate policies
-   atlasent-policy test policies
+   node dist/atlasent-policy.mjs validate policies
+   node dist/atlasent-policy.mjs test policies
    ./scripts/check-public-safety.sh
    ```
 
    CI runs the same checks on every pull request.
+
+## Suggestions without code
+
+Not ready to write YAML? Open an issue with the **Suggest a new policy** or
+**Suggest an improvement** form. Concrete example requests and the decision you'd
+expect for each are the most useful part: they become the test suite.
+
+## Improving the CLI
+
+The `atlasent-policy` CLI lives in `cli/src` and is bundled into
+`dist/atlasent-policy.mjs`, which is committed so the GitHub Action and
+`npx github:Atlasent/atlasent-policies` work with no install.
+
+```sh
+npm ci
+npm run typecheck
+npm test
+npm run build        # regenerates dist/atlasent-policy.mjs; commit it with your change
+```
+
+CI rebuilds `dist/` from source and fails if the committed file differs.
+
+**The rule engine is a synced copy.** `cli/src/engine/` mirrors the engine the
+AtlaSent runtime uses to make live decisions, so local test results match production.
+Don't edit those files here; a change would be overwritten on the next sync. If you
+think the engine behaves wrongly, open an issue with a failing test case.
 
 ## Sign your commits (DCO)
 

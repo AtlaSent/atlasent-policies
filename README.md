@@ -31,7 +31,7 @@ npx github:Atlasent/atlasent-policies apply policies      # publish (usually fro
 
 The CLI (`atlasent-policy`) ships in this repo as one bundled file,
 [`dist/atlasent-policy.mjs`](dist/atlasent-policy.mjs), so there is nothing else to install. It needs
-Node 20+. Pin a tag (`github:Atlasent/atlasent-policies#v1`) for reproducible runs.
+Node 20+. Its source is in [`cli/`](cli/). Pin a tag (`github:Atlasent/atlasent-policies#v1`) for reproducible runs.
 
 In CI, the action in this repo runs `plan` on pull requests and `apply` on merge:
 
@@ -61,8 +61,24 @@ give you autocomplete and inline errors.
 
 ## Contributing
 
-New policies and improvements are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
-Every policy needs a test suite, and every commit needs a DCO sign-off.
+This is a community library: anyone can add a policy, improve one, or improve the
+CLI itself.
+
+- **Suggest a policy or an improvement, no code needed.** Open an issue with
+  [Suggest a new policy](../../issues/new?template=new-policy.yml) or
+  [Suggest an improvement](../../issues/new?template=improvement.yml). Describe the
+  control and a few example requests; a maintainer or another contributor can turn it
+  into YAML and tests.
+- **Found a policy that decides wrong?** Use
+  [Report a policy that's wrong](../../issues/new?template=policy-bug.yml). For
+  anything exploitable, follow [SECURITY.md](SECURITY.md) instead.
+- **Add or change a policy.** Open a pull request with the policy and its test suite.
+- **Improve the CLI.** Its source is in [`cli/src`](cli/src); `npm ci && npm test`
+  builds and tests it, and `npm run build` regenerates `dist/`.
+
+Every pull request is checked by CI (validate, test, CLI build and a public-safety
+scan) and every commit needs a DCO sign-off. Details in
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
