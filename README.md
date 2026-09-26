@@ -18,6 +18,11 @@ a test suite that runs against the real AtlaSent rule engine. Copy one into your
 | [`identity.privileged.grant`](policies/identity.privileged.grant.yaml) | Security approval, just-in-time grants only (8 hours max) |
 | [`agent.tool.invoke`](policies/agent.tool.invoke.yaml) | Tool allowlist, human review for risky tools, rate limit, deny everything else |
 
+> **Status:** the `atlasent-policy` CLI (npm package `@atlasent/cli`) is not
+> published yet. The policies, tests and schema here are final; the commands
+> below and the GitHub Action work once the CLI is on npm. Until then, CI in
+> this repo runs the leak scan and sign-off checks only.
+
 ## Use a policy
 
 ```sh

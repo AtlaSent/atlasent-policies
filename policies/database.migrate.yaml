@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/Atlasent/atlasent-api/main/packages/cli/schema/policy.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Atlasent/atlasent-policies/main/schema/policy.schema.json
 #
 # Schema migrations: a DBA approval, a pinned migration digest, and human
 # review for anything destructive.

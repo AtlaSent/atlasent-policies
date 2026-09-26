@@ -15,6 +15,8 @@ patterns=(
   'service_role|SUPABASE_SERVICE_ROLE_KEY|sb_secret_'
   'atlasent-internal|atlasent-control-plane'
   'eyJhbGciOi[A-Za-z0-9_-]{10,}'
+  'github(usercontent)?\.com/Atlasent/atlasent-(api|console|docs|internal|examples|control-plane)'
+  '\b(CROSS|IMPL)-[0-9]{3}\b'
 )
 
 scan() {
@@ -38,6 +40,8 @@ if [ "${1:-}" = "--self-test" ]; then
     'env: SUPABASE_SERVICE_ROLE_KEY'
     'see atlasent-internal/planning'
     'jwt: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
+    'schema: https://raw.githubusercontent.com/Atlasent/atlasent-api/main/x.json'
+    'decided in CROSS-011'
   )
   for s in "${samples[@]}"; do
     printf '%s\n' "$s" > "$tmp/sample.yaml"

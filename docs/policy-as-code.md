@@ -4,7 +4,7 @@ Keep your AtlaSent policies as YAML files in a repo. Review changes as pull requ
 
 Starter policies with test suites are in [`policies/`](../policies/); the JSON Schema is [`schema/policy.schema.json`](../schema/policy.schema.json); the GitHub Action is [`actions/policy`](../actions/policy/action.yml).
 
-The repo is the drafting surface; the AtlaSent runtime stays the system of record (CROSS-011). `apply` publishes through the runtime's governed path: approval-chain gates and atomic, immutable versioning still apply, and a refused publish fails the CI job.
+The repo is the drafting surface; the AtlaSent runtime stays the system of record. `apply` publishes through the runtime's governed path: approval-chain gates and atomic, immutable versioning still apply, and a refused publish fails the CI job.
 
 ## Layout
 
