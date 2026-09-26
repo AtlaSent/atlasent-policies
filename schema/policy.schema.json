@@ -1,0 +1,488 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/Atlasent/atlasent-policies/main/schema/policy.schema.json",
+  "title": "AtlaSent policy file",
+  "description": "One policy per file: the rules the AtlaSent runtime evaluates for one action type. Mirrors Rules in @atlasent/sdk rules.ts; unknown keys are rejected because the engine would silently ignore them.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "action_type",
+    "rules"
+  ],
+  "properties": {
+    "action_type": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "Action class slug, dot-notation (e.g. deployment.production)."
+    },
+    "description": {
+      "type": "string"
+    },
+    "rules": {
+      "$ref": "#/$defs/rules"
+    }
+  },
+  "$defs": {
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "deny_actors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Actor ids that always get deny."
+        },
+        "escalate_actors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Actor ids that always get escalate."
+        },
+        "hold_actors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Actor ids that always get hold."
+        },
+        "allow_actors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Actor ids that always get allow."
+        },
+        "deny_roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Actor roles that always get deny."
+        },
+        "escalate_roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Actor roles that always get escalate."
+        },
+        "hold_roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Actor roles that always get hold."
+        },
+        "allow_roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Actor roles that always get allow."
+        },
+        "require_approvals": {
+          "description": "Minimum approvals, as a count or a policy.",
+          "oneOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "count": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "required_roles": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "role",
+                      "count"
+                    ],
+                    "properties": {
+                      "role": {
+                        "type": "string"
+                      },
+                      "count": {
+                        "type": "integer",
+                        "minimum": 1
+                      }
+                    }
+                  }
+                },
+                "exclude_actor": {
+                  "type": "boolean",
+                  "description": "Default true: the requester cannot approve their own action."
+                },
+                "unique_approvers": {
+                  "type": "boolean",
+                  "description": "Default true."
+                },
+                "max_age_seconds": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          ]
+        },
+        "change_window": {
+          "$ref": "#/$defs/timeWindow",
+          "description": "Evaluation must fall inside this window."
+        },
+        "freeze_windows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/timeWindow"
+          },
+          "description": "Deny inside any of these windows."
+        },
+        "rate_limits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "counter_field",
+              "max"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "scope": {
+                "enum": [
+                  "actor",
+                  "global"
+                ]
+              },
+              "counter_field": {
+                "type": "string"
+              },
+              "max": {
+                "type": "number"
+              },
+              "decision": {
+                "type": "string",
+                "enum": [
+                  "allow",
+                  "deny",
+                  "hold",
+                  "escalate"
+                ]
+              },
+              "deny_code": {
+                "type": "string"
+              },
+              "deny_reason": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "risk": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "signals"
+          ],
+          "properties": {
+            "signals": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "weight"
+                ],
+                "properties": {
+                  "field": {
+                    "type": "string"
+                  },
+                  "when": {
+                    "$ref": "#/$defs/condition"
+                  },
+                  "weight": {
+                    "type": "number"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "thresholds": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "deny_gte": {
+                  "type": "number"
+                },
+                "escalate_gte": {
+                  "type": "number"
+                },
+                "hold_gte": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        },
+        "rollout": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "percentage": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "seed": {
+              "type": "string"
+            },
+            "groups": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "actors": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "roles": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "templates": {
+          "type": "array",
+          "description": "Evaluated in order; first match wins. If templates exist and none match, the decision is deny (NO_TEMPLATE_MATCH).",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "decision"
+            ],
+            "properties": {
+              "decision": {
+                "type": "string",
+                "enum": [
+                  "allow",
+                  "deny",
+                  "hold",
+                  "escalate"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "when": {
+                "$ref": "#/$defs/condition"
+              },
+              "deny_code": {
+                "type": "string"
+              },
+              "deny_reason": {
+                "type": "string"
+              },
+              "condition_id": {
+                "type": "string",
+                "description": "Canonical condition-type tag (metadata only)."
+              }
+            }
+          }
+        },
+        "shadow": {
+          "$ref": "#/$defs/rules",
+          "description": "Rules evaluated in shadow mode alongside the live rules (logged, not enforced)."
+        },
+        "location_requirements": {
+          "type": "object",
+          "description": "Location constraints evaluated by the runtime."
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "allow",
+            "deny",
+            "hold",
+            "escalate"
+          ],
+          "description": "Fixed decision when no gate or template decides."
+        },
+        "deny_code": {
+          "type": "string"
+        },
+        "deny_reason": {
+          "type": "string"
+        }
+      }
+    },
+    "timeWindow": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "timezone": {
+          "type": "string",
+          "description": "IANA time zone; default UTC."
+        },
+        "days_of_week": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 6
+          },
+          "description": "0 = Sunday \u2026 6 = Saturday."
+        },
+        "hours": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "start",
+            "end"
+          ],
+          "properties": {
+            "start": {
+              "type": "string",
+              "pattern": "^\\d{2}:\\d{2}$"
+            },
+            "end": {
+              "type": "string",
+              "pattern": "^\\d{2}:\\d{2}$"
+            }
+          }
+        },
+        "date_ranges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "start",
+              "end"
+            ],
+            "properties": {
+              "start": {
+                "type": "string"
+              },
+              "end": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "description": "A field comparison ({ field, <operator> }) or a combinator (all / any / none / not). Unknown operators are rejected: the engine would evaluate them as false.",
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "Path such as context.environment, actor.role, actor_id."
+        },
+        "eq": {
+          "description": "Equal (strict)."
+        },
+        "neq": {
+          "description": "Not equal."
+        },
+        "gt": {
+          "type": "number"
+        },
+        "gte": {
+          "type": "number"
+        },
+        "lt": {
+          "type": "number"
+        },
+        "lte": {
+          "type": "number"
+        },
+        "in": {
+          "type": "array"
+        },
+        "nin": {
+          "type": "array"
+        },
+        "contains": {
+          "type": "string"
+        },
+        "startswith": {
+          "type": "string"
+        },
+        "endswith": {
+          "type": "string"
+        },
+        "regex": {
+          "type": "string"
+        },
+        "regex_flags": {
+          "type": "string"
+        },
+        "exists": {
+          "type": "boolean"
+        },
+        "has_any": {
+          "type": "array"
+        },
+        "has_all": {
+          "type": "array"
+        },
+        "subset_of": {
+          "type": "array"
+        },
+        "all": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/condition"
+          }
+        },
+        "any": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/condition"
+          }
+        },
+        "none": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/condition"
+          }
+        },
+        "not": {
+          "$ref": "#/$defs/condition"
+        }
+      }
+    }
+  }
+}

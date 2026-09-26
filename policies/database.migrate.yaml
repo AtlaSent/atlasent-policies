@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Atlasent/atlasent-api/main/packages/cli/schema/policy.schema.json
+#
+# Schema migrations: a DBA approval, a pinned migration digest, and human
+# review for anything destructive.
+#
+# Rules in this file are checked by the AtlaSent rule engine. Settings that
+# must be enforced by the runtime itself live on the action class, not here.
+# Also turn on human approval for this action class, and bind the request to
+# the exact migration (the digest this policy checks for).
+action_type: database.migrate
+description: DBA approval, a migration digest bound to the request, and escalation for destructive changes.
+rules:
+  change_window:
+    timezone: UTC
+    days_of_week: [1, 2, 3, 4]         # no Friday migrations
+    hours: { start: "07:00", end: "16:00" }
+  require_approvals:
+    required_roles: [{ role: dba, count: 1 }]
+    exclude_actor: true
+    max_age_seconds: 43200
+  templates:
+    - name: migration-digest-required
+      decision: deny
+      when: { all: [{ field: context.migration_digest, exists: false }] }
+      deny_code: MIGRATION_DIGEST_MISSING
+      deny_reason: The request must carry the digest of the exact migration being run.
+    - name: destructive-needs-review
+      decision: escalate
+      when: { any: [{ field: context.destructive, eq: true }, { field: context.drops_table, eq: true }] }
+    - decision: allow

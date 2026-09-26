@@ -1,0 +1,40 @@
+bundle: data.export
+tests:
+  - name: approved de-identified export is allowed
+    actor_id: analyst
+    now: "2026-03-10T09:00:00Z"
+    context:
+      contains_direct_identifiers: false
+      row_count: 5000
+      approvers: [{ id: priya, timestamp: "2026-03-10T08:00:00Z" }]
+    expect: allow
+  - name: export with direct identifiers is denied
+    actor_id: analyst
+    now: "2026-03-10T09:00:00Z"
+    context:
+      contains_direct_identifiers: true
+      approvers: [{ id: priya, timestamp: "2026-03-10T08:00:00Z" }]
+    expect: deny
+    expect_deny_code: DIRECT_IDENTIFIERS
+  - name: an export that doesn't declare identifiers is treated as containing them
+    actor_id: analyst
+    now: "2026-03-10T09:00:00Z"
+    context:
+      approvers: [{ id: priya, timestamp: "2026-03-10T08:00:00Z" }]
+    expect: deny
+    expect_deny_code: DIRECT_IDENTIFIERS
+  - name: a large export escalates
+    actor_id: analyst
+    now: "2026-03-10T09:00:00Z"
+    context:
+      contains_direct_identifiers: false
+      row_count: 2500000
+      approvers: [{ id: priya, timestamp: "2026-03-10T08:00:00Z" }]
+    expect: escalate
+  - name: no approval is denied
+    actor_id: analyst
+    now: "2026-03-10T09:00:00Z"
+    context:
+      contains_direct_identifiers: false
+    expect: deny
+    expect_deny_code: INSUFFICIENT_APPROVALS

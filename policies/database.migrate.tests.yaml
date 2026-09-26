@@ -1,0 +1,37 @@
+bundle: database.migrate
+tests:
+  - name: additive migration with DBA approval and digest is allowed
+    actor_id: deployer
+    now: "2026-03-10T09:00:00Z"
+    context:
+      migration_digest: "sha256:4f2a"
+      approvers: [{ id: dana, role: dba, timestamp: "2026-03-10T08:00:00Z" }]
+    expect: allow
+  - name: missing digest is denied
+    actor_id: deployer
+    now: "2026-03-10T09:00:00Z"
+    context:
+      approvers: [{ id: dana, role: dba, timestamp: "2026-03-10T08:00:00Z" }]
+    expect: deny
+    expect_deny_code: MIGRATION_DIGEST_MISSING
+  - name: dropping a table escalates for human review
+    actor_id: deployer
+    now: "2026-03-10T09:00:00Z"
+    context:
+      migration_digest: "sha256:4f2a"
+      drops_table: true
+      approvers: [{ id: dana, role: dba, timestamp: "2026-03-10T08:00:00Z" }]
+    expect: escalate
+  - name: a DBA cannot approve their own migration
+    actor_id: dana
+    now: "2026-03-10T09:00:00Z"
+    context:
+      migration_digest: "sha256:4f2a"
+      approvers: [{ id: dana, role: dba, timestamp: "2026-03-10T08:00:00Z" }]
+    expect: deny
+    expect_deny_code: INSUFFICIENT_ROLE_APPROVALS
+  - name: Friday is outside the change window
+    actor_id: deployer
+    now: "2026-03-13T09:00:00Z"
+    expect: deny
+    expect_deny_code: OUTSIDE_CHANGE_WINDOW

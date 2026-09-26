@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Atlasent/atlasent-api/main/packages/cli/schema/policy.schema.json
+#
+# Bulk data exports: approval required, direct identifiers never leave,
+# large exports go to a human.
+#
+# Rules in this file are checked by the AtlaSent rule engine. Settings that
+# must be enforced by the runtime itself live on the action class, not here.
+# Also turn on human approval for this action class.
+action_type: data.export
+description: One approval; exports with direct identifiers are denied; over 100k rows escalates.
+rules:
+  require_approvals:
+    count: 1
+    exclude_actor: true
+    max_age_seconds: 86400
+  templates:
+    - name: no-direct-identifiers
+      decision: deny
+      when: { all: [{ field: context.contains_direct_identifiers, neq: false }] }
+      deny_code: DIRECT_IDENTIFIERS
+      deny_reason: Exports must declare contains_direct_identifiers false; unknown counts as yes.
+    - name: large-export-review
+      decision: escalate
+      when: { all: [{ field: context.row_count, gt: 100000 }] }
+    - decision: allow

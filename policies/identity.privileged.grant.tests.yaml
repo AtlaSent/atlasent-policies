@@ -1,0 +1,35 @@
+bundle: identity.privileged.grant
+tests:
+  - name: short approved grant is allowed
+    actor_id: oncall-raj
+    now: "2026-03-10T15:00:00Z"
+    context:
+      role: prod-admin
+      duration_hours: 2
+      approvers: [{ id: sam, role: security, timestamp: "2026-03-10T14:30:00Z" }]
+    expect: allow
+  - name: a standing grant is denied
+    actor_id: oncall-raj
+    now: "2026-03-10T15:00:00Z"
+    context:
+      role: prod-admin
+      duration_hours: 720
+      approvers: [{ id: sam, role: security, timestamp: "2026-03-10T14:30:00Z" }]
+    expect: deny
+    expect_deny_code: STANDING_ACCESS
+  - name: a grant with no duration is denied
+    actor_id: oncall-raj
+    now: "2026-03-10T15:00:00Z"
+    context:
+      role: prod-admin
+      approvers: [{ id: sam, role: security, timestamp: "2026-03-10T14:30:00Z" }]
+    expect: deny
+    expect_deny_code: STANDING_ACCESS
+  - name: security cannot approve their own grant
+    actor_id: sam
+    now: "2026-03-10T15:00:00Z"
+    context:
+      duration_hours: 1
+      approvers: [{ id: sam, role: security, timestamp: "2026-03-10T14:30:00Z" }]
+    expect: deny
+    expect_deny_code: INSUFFICIENT_ROLE_APPROVALS

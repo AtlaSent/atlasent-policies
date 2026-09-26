@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Atlasent/atlasent-api/main/packages/cli/schema/policy.schema.json
+#
+# Production deploys: two recent approvals (one from security), business
+# hours only, never during a freeze.
+#
+# Rules in this file are checked by the AtlaSent rule engine. Settings that
+# must be enforced by the runtime itself live on the action class, not here.
+# Also turn on human approval for this action class, and require the deploy
+# request to carry a snapshot of the state it expects to change.
+action_type: production.deploy
+description: Two recent approvals incl. security, weekdays 08:00-18:00 UTC, no deploys during a freeze.
+rules:
+  change_window:
+    timezone: UTC
+    days_of_week: [1, 2, 3, 4, 5]      # Mon-Fri (0 = Sunday)
+    hours: { start: "08:00", end: "18:00" }
+  freeze_windows:
+    - name: year-end-freeze            # edit to your own freeze calendar
+      date_ranges: [{ start: "2026-12-22", end: "2027-01-02" }]
+  require_approvals:
+    count: 2
+    required_roles: [{ role: security, count: 1 }]
+    exclude_actor: true                # the requester's own approval never counts
+    max_age_seconds: 86400             # approvals older than a day are stale
+  templates:
+    - decision: allow

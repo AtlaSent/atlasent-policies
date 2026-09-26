@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Atlasent/atlasent-api/main/packages/cli/schema/policy.schema.json
+#
+# Outbound wires: dual authorization, verified beneficiary, and a human for
+# large amounts.
+#
+# Rules in this file are checked by the AtlaSent rule engine. Settings that
+# must be enforced by the runtime itself live on the action class, not here.
+# Also turn on human approval, MFA, and verified caller identity for this
+# action class. This file cannot enforce those; only the runtime can.
+action_type: finance.wire.transfer
+description: Two approvals (not the initiator), verified beneficiary only, USD 250,000 and over escalates.
+rules:
+  require_approvals:
+    count: 2
+    required_roles: [{ role: treasury, count: 1 }]
+    exclude_actor: true
+    max_age_seconds: 14400
+  templates:
+    - name: beneficiary-must-be-verified
+      decision: deny
+      when: { all: [{ field: context.beneficiary_verified, neq: true }] }
+      deny_code: BENEFICIARY_UNVERIFIED
+    - name: large-wire-review
+      decision: escalate
+      when: { all: [{ field: context.amount_usd, gte: 250000 }] }
+    - decision: allow

@@ -1,0 +1,29 @@
+bundle: agent.tool.invoke
+tests:
+  - name: an allowlisted tool runs
+    actor_id: agent:support-bot
+    context: { tool: docs.read, environment: production, rate: { actor_calls_1m: 3 } }
+    expect: allow
+  - name: sending email needs a human
+    actor_id: agent:support-bot
+    context: { tool: email.send, environment: production, rate: { actor_calls_1m: 3 } }
+    expect: escalate
+  - name: shell in production is denied outright
+    actor_id: agent:support-bot
+    context: { tool: shell.exec, environment: production, rate: { actor_calls_1m: 3 } }
+    expect: deny
+    expect_deny_code: TOOL_FORBIDDEN_IN_PRODUCTION
+  - name: shell in staging escalates
+    actor_id: agent:support-bot
+    context: { tool: shell.exec, environment: staging, rate: { actor_calls_1m: 3 } }
+    expect: escalate
+  - name: an unlisted tool is denied
+    actor_id: agent:support-bot
+    context: { tool: crypto.mine, environment: staging, rate: { actor_calls_1m: 3 } }
+    expect: deny
+    expect_deny_code: NO_TEMPLATE_MATCH
+  - name: bursts are rate limited
+    actor_id: agent:support-bot
+    context: { tool: docs.read, environment: production, rate: { actor_calls_1m: 61 } }
+    expect: deny
+    expect_deny_code: RATE_LIMITED

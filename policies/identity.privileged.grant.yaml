@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Atlasent/atlasent-api/main/packages/cli/schema/policy.schema.json
+#
+# Privileged role grants: security approval and just-in-time only.
+#
+# Rules in this file are checked by the AtlaSent rule engine. Settings that
+# must be enforced by the runtime itself live on the action class, not here.
+# Also turn on human approval, MFA, and verified caller identity for this
+# action class.
+action_type: identity.privileged.grant
+description: Security approval, and every grant must expire within 8 hours.
+rules:
+  require_approvals:
+    required_roles: [{ role: security, count: 1 }]
+    exclude_actor: true
+    max_age_seconds: 3600
+  templates:
+    - name: grants-must-expire
+      decision: deny
+      when: { any: [{ field: context.duration_hours, exists: false }, { field: context.duration_hours, gt: 8 }] }
+      deny_code: STANDING_ACCESS
+      deny_reason: Privileged grants are just-in-time; set duration_hours to 8 or less.
+    - decision: allow

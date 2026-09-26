@@ -1,0 +1,31 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Public-safety check (self-test, then scan)
+        run: |
+          scripts/check-public-safety.sh --self-test
+          scripts/check-public-safety.sh
+      - name: DCO sign-off
+        if: github.event_name == 'pull_request'
+        run: scripts/check-dco.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+      - name: Validate and test every policy (offline)
+        uses: ./actions/policy
+        with:
+          mode: check

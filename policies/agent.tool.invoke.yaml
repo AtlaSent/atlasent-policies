@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Atlasent/atlasent-api/main/packages/cli/schema/policy.schema.json
+#
+# AI agent tool calls: an allowlist, human review for risky tools, and
+# everything else denied.
+#
+# Rules in this file are checked by the AtlaSent rule engine. Settings that
+# must be enforced by the runtime itself live on the action class, not here.
+# Also require verified agent identity for this action class, so a tool call
+# can't claim to be a different agent.
+action_type: agent.tool.invoke
+description: Allowlisted tools run; risky tools escalate to a human; anything unlisted is denied.
+rules:
+  rate_limits:
+    - name: per-agent-burst
+      scope: actor
+      counter_field: rate.actor_calls_1m
+      max: 60
+      deny_code: RATE_LIMITED
+  templates:
+    - name: never-in-production
+      decision: deny
+      when:
+        all:
+          - { field: context.environment, eq: production }
+          - { field: context.tool, in: [shell.exec, filesystem.delete, database.drop] }
+      deny_code: TOOL_FORBIDDEN_IN_PRODUCTION
+    - name: risky-tools-need-a-human
+      decision: escalate
+      when: { all: [{ field: context.tool, in: [email.send, payments.refund, shell.exec] }] }
+    - name: allowlist
+      decision: allow
+      when: { all: [{ field: context.tool, in: [search.web, docs.read, calendar.read, ticket.comment] }] }
+    # Anything not matched above is denied (NO_TEMPLATE_MATCH).

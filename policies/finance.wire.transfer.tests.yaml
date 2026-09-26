@@ -1,0 +1,43 @@
+bundle: finance.wire.transfer
+tests:
+  - name: dual-approved wire to a verified beneficiary is allowed
+    actor_id: ops-ana
+    now: "2026-03-10T15:00:00Z"
+    context:
+      amount_usd: 42000
+      beneficiary_verified: true
+      approvers:
+        - { id: tom, role: treasury, timestamp: "2026-03-10T14:00:00Z" }
+        - { id: mei, role: finance, timestamp: "2026-03-10T14:10:00Z" }
+    expect: allow
+  - name: unverified beneficiary is denied
+    actor_id: ops-ana
+    now: "2026-03-10T15:00:00Z"
+    context:
+      amount_usd: 42000
+      approvers:
+        - { id: tom, role: treasury, timestamp: "2026-03-10T14:00:00Z" }
+        - { id: mei, role: finance, timestamp: "2026-03-10T14:10:00Z" }
+    expect: deny
+    expect_deny_code: BENEFICIARY_UNVERIFIED
+  - name: a large wire escalates
+    actor_id: ops-ana
+    now: "2026-03-10T15:00:00Z"
+    context:
+      amount_usd: 1200000
+      beneficiary_verified: true
+      approvers:
+        - { id: tom, role: treasury, timestamp: "2026-03-10T14:00:00Z" }
+        - { id: mei, role: finance, timestamp: "2026-03-10T14:10:00Z" }
+    expect: escalate
+  - name: the same approver twice counts once
+    actor_id: ops-ana
+    now: "2026-03-10T15:00:00Z"
+    context:
+      amount_usd: 42000
+      beneficiary_verified: true
+      approvers:
+        - { id: tom, role: treasury, timestamp: "2026-03-10T14:00:00Z" }
+        - { id: tom, role: treasury, timestamp: "2026-03-10T14:05:00Z" }
+    expect: deny
+    expect_deny_code: INSUFFICIENT_APPROVALS

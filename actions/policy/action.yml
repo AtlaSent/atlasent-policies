@@ -1,0 +1,125 @@
+# Usage: uses: Atlasent/atlasent-policies/actions/policy@v1
+# Guide: https://github.com/Atlasent/atlasent-policies/blob/main/docs/policy-as-code.md
+name: AtlaSent Policy
+description: Policy as code for AtlaSent — validate and test policy files (YAML or JSON), plan against live policy on PRs, apply on merge
+author: AtlaSent
+
+inputs:
+  dir:
+    description: Directory containing policy files (*.yaml, *.yml, *.json) and their *.tests.* suites
+    required: false
+    default: policies
+  mode:
+    description: >
+      check  — validate + test only (no network, no secrets needed).
+      plan   — check, then diff every policy against what is live and write the plan to the job summary
+               (and to the `plan` output, ready to post as a PR comment).
+      apply  — check, then publish every policy whose rules differ from what is live.
+    required: false
+    default: check
+  plan:
+    description: Deprecated — use mode=plan. When "true", behaves like mode=plan.
+    required: false
+    default: "false"
+  api_key:
+    description: AtlaSent API key — policy:read for plan, policy:write for apply. Not needed for mode=check.
+    required: false
+    default: ""
+  base_url:
+    description: AtlaSent functions base URL
+    required: false
+    default: https://api.atlasent.io/functions/v1
+  node_version:
+    description: Node version to use
+    required: false
+    default: "20"
+  cli_version:
+    description: Pinned @atlasent/cli version (recommended for reproducible CI)
+    required: false
+    default: "latest"
+
+outputs:
+  plan:
+    description: Markdown plan (mode=plan only)
+    value: ${{ steps.plan.outputs.plan }}
+  has_changes:
+    description: '"true" when the plan contains changes (mode=plan only)'
+    value: ${{ steps.plan.outputs.has_changes }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node_version }}
+
+    - name: Install @atlasent/cli
+      shell: bash
+      env:
+        CLI_VERSION: ${{ inputs.cli_version }}
+      run: npm install -g "@atlasent/cli@${CLI_VERSION}"
+
+    - name: Validate (static analysis, no network)
+      shell: bash
+      env:
+        POLICY_DIR: ${{ inputs.dir }}
+      run: atlasent-policy validate "$POLICY_DIR"
+
+    - name: Test (policy test suites, no network)
+      shell: bash
+      env:
+        POLICY_DIR: ${{ inputs.dir }}
+      run: |
+        if find "$POLICY_DIR" -name '*.tests.yaml' -o -name '*.tests.yml' -o -name '*.tests.json' | grep -q .; then
+          atlasent-policy test "$POLICY_DIR"
+        else
+          echo "::notice::No *.tests.* suites in $POLICY_DIR — add some so policy logic is checked before it goes live."
+        fi
+
+    - name: Plan against live policy
+      id: plan
+      if: ${{ inputs.mode == 'plan' || inputs.plan == 'true' }}
+      shell: bash
+      env:
+        ATLASENT_API_KEY: ${{ inputs.api_key }}
+        ATLASENT_BASE_URL: ${{ inputs.base_url }}
+        POLICY_DIR: ${{ inputs.dir }}
+      run: |
+        if [ -z "${ATLASENT_API_KEY:-}" ]; then
+          echo "::error::mode=plan needs api_key (a key with policy:read)"
+          exit 1
+        fi
+        set +e
+        atlasent-policy plan "$POLICY_DIR" --format markdown --detailed-exitcode > plan.md
+        code=$?
+        set -e
+        cat plan.md >> "$GITHUB_STEP_SUMMARY"
+        {
+          echo "plan<<ATLASENT_PLAN_EOF"
+          cat plan.md
+          echo "ATLASENT_PLAN_EOF"
+        } >> "$GITHUB_OUTPUT"
+        case "$code" in
+          0) echo "has_changes=false" >> "$GITHUB_OUTPUT" ;;
+          2) echo "has_changes=true" >> "$GITHUB_OUTPUT" ;;
+          *) cat plan.md; exit "$code" ;;
+        esac
+
+    - name: Apply
+      if: ${{ inputs.mode == 'apply' }}
+      shell: bash
+      env:
+        ATLASENT_API_KEY: ${{ inputs.api_key }}
+        ATLASENT_BASE_URL: ${{ inputs.base_url }}
+        POLICY_DIR: ${{ inputs.dir }}
+      run: |
+        if [ -z "${ATLASENT_API_KEY:-}" ]; then
+          echo "::error::mode=apply needs api_key (a key with policy:write)"
+          exit 1
+        fi
+        atlasent-policy apply "$POLICY_DIR" --source-digest "$GITHUB_SHA"
+
+branding:
+  icon: check
+  color: blue

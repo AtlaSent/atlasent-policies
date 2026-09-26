@@ -1,0 +1,42 @@
+bundle: production.deploy
+tests:
+  - name: two fresh approvals incl. security on a weekday is allowed
+    actor_id: ci-bot
+    now: "2026-03-10T10:00:00Z"        # Tuesday
+    context:
+      approvers:
+        - { id: sam, role: security, timestamp: "2026-03-10T09:00:00Z" }
+        - { id: lee, role: engineering, timestamp: "2026-03-10T09:30:00Z" }
+    expect: allow
+  - name: two approvals without security is not enough
+    actor_id: ci-bot
+    now: "2026-03-10T10:00:00Z"
+    context:
+      approvers:
+        - { id: kim, role: engineering, timestamp: "2026-03-10T09:00:00Z" }
+        - { id: lee, role: engineering, timestamp: "2026-03-10T09:30:00Z" }
+    expect: deny
+    expect_deny_code: INSUFFICIENT_ROLE_APPROVALS
+  - name: an approval from yesterday is stale
+    actor_id: ci-bot
+    now: "2026-03-10T10:00:00Z"
+    context:
+      approvers:
+        - { id: sam, role: security, timestamp: "2026-03-08T09:00:00Z" }
+        - { id: lee, role: engineering, timestamp: "2026-03-10T09:30:00Z" }
+    expect: deny
+    expect_deny_code: INSUFFICIENT_APPROVALS
+  - name: Saturday is outside the change window
+    actor_id: ci-bot
+    now: "2026-03-14T10:00:00Z"
+    expect: deny
+    expect_deny_code: OUTSIDE_CHANGE_WINDOW
+  - name: year-end freeze denies even with approvals
+    actor_id: ci-bot
+    now: "2026-12-23T10:00:00Z"
+    context:
+      approvers:
+        - { id: sam, role: security, timestamp: "2026-12-23T09:00:00Z" }
+        - { id: lee, role: engineering, timestamp: "2026-12-23T09:30:00Z" }
+    expect: deny
+    expect_deny_code: FROZEN
