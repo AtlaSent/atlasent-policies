@@ -88,7 +88,7 @@
           "oneOf": [
             {
               "type": "integer",
-              "minimum": 0
+              "minimum": 1
             },
             {
               "type": "object",
@@ -96,7 +96,7 @@
               "properties": {
                 "count": {
                   "type": "integer",
-                  "minimum": 0
+                  "minimum": 1
                 },
                 "required_roles": {
                   "type": "array",
@@ -128,7 +128,7 @@
                 },
                 "max_age_seconds": {
                   "type": "integer",
-                  "minimum": 1
+                  "minimum": 0
                 }
               }
             }
@@ -320,8 +320,55 @@
           "description": "Rules evaluated in shadow mode alongside the live rules (logged, not enforced)."
         },
         "location_requirements": {
-          "type": "object",
-          "description": "Location constraints evaluated by the runtime."
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2,
+          "description": "Location constraints on the actor and/or target, verified from signed location assertions by the runtime (never from caller context). At most one entry per subject.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "subject",
+              "allowed_countries",
+              "trusted_issuers",
+              "max_age_ms",
+              "min_confidence"
+            ],
+            "properties": {
+              "subject": {
+                "enum": [
+                  "actor",
+                  "target"
+                ]
+              },
+              "allowed_countries": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[A-Z]{2}$"
+                },
+                "description": "ISO 3166-1 alpha-2 codes."
+              },
+              "trusted_issuers": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "max_age_ms": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "min_confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          }
         },
         "decision": {
           "type": "string",

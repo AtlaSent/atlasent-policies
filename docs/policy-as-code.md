@@ -14,8 +14,8 @@ your-repo/
 │   ├── policy-pr.yml                       # validate + test + plan on PRs
 │   └── policy-apply.yml                    # apply on merge to main
 └── policies/
-    ├── deployment.production.yaml          # one policy per action type
-    ├── deployment.production.tests.yaml    # its test cases
+    ├── production.deploy.yaml          # one policy per action type
+    ├── production.deploy.tests.yaml    # its test cases
     └── payments.transfer.yaml
 ```
 
@@ -23,7 +23,7 @@ your-repo/
 
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/Atlasent/atlasent-policies/main/schema/policy.schema.json
-action_type: deployment.production
+action_type: production.deploy
 description: Two approvals, business hours only, no deploys over the holidays.
 rules:
   deny_actors:
@@ -69,7 +69,7 @@ Set `ATLASENT_API_KEY` for `plan`, `apply` and `pull`. `ATLASENT_BASE_URL` defau
 
 ```
 $ atlasent-policy plan
-~ deployment.production.yaml (deployment.production) — will publish a new version (replaces v3)
+~ production.deploy.yaml (production.deploy) — will publish a new version (replaces v3)
       require_approvals:
     -   count: 1
     +   count: 2
@@ -87,7 +87,8 @@ Plan: 1 to publish, 1 unchanged, 0 error(s).
 
 ### `apply`
 
-- Lints and plans **every** file first. If any file has an error, nothing is written.
+- Lints and plans **every** file first, including server-side validation. If any file fails that preflight, nothing is written.
+- Then publishes one action type at a time. Each publish is atomic, but there is no cross-file transaction: if the server refuses a later file (for example, an approval chain), earlier files stay published and the job exits 1. Fix and re-run; only what is still out of date is published.
 - Publishes only files whose rules changed; unchanged files are left alone, so re-running `apply` is a no-op.
 - Each publish records provenance: `source_digest` (the commit — `--source-digest`, or `$GITHUB_SHA` in Actions) and a `reason`.
 - Publishing is governed server-side. If the action class has an approval chain, the atomic publish is refused (use the draft + transition flow in the console); the job exits 1 with the reason.
@@ -152,10 +153,10 @@ Use two keys: a `policy:read` key for PR plans (safe to expose to more workflows
 
 ## Tests
 
-Put cases next to the policy as `<action_type>.tests.yaml`. They run through the real rule engine with no network. These cases pass against the example policy above :
+Put cases next to the policy as `<action_type>.tests.yaml`. They run through the real rule engine with no network. These cases pass against the example policy above:
 
 ```yaml
-bundle: deployment.production
+bundle: production.deploy
 tests:
   - name: two recent approvals incl. security, inside the window, is allowed
     actor_id: alice
@@ -215,6 +216,6 @@ Create keys in the AtlaSent console → API Keys.
 ## Safety
 
 - **Nothing is skipped silently.** Unparseable files, duplicate `action_type`s and unknown keys are errors.
-- **`apply` is all-or-nothing on errors.** Any lint, parse, or validation error aborts the run before any write.
+- **`apply` preflights everything.** Any lint, parse, or validation error aborts the run before any write. A publish the server refuses mid-run stops with exit 1; earlier files in that run stay published.
 - **Published bundles are immutable.** `apply` publishes a new version via the runtime's atomic publication path; the previous version stays intact.
 - **Rules are hash-chained into the audit trail.** Every evaluation records the `rules_hash` it ran against.
