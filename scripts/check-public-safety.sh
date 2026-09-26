@@ -17,12 +17,13 @@ patterns=(
   'eyJhbGciOi[A-Za-z0-9_-]{10,}'
   'github(usercontent)?\.com/Atlasent/atlasent-(api|console|docs|internal|examples|control-plane)'
   '\b(CROSS|IMPL)-[0-9]{3}\b'
+  'node_modules/\.pnpm/|\.\./atlasent-[a-z-]+/'
 )
 
 scan() {
   local root="$1" bad=0
   for pat in "${patterns[@]}"; do
-    if grep -rEn --exclude-dir=.git --exclude=check-public-safety.sh -e "$pat" "$root"; then
+    if grep -rEn --exclude-dir=.git --exclude-dir=node_modules --exclude=check-public-safety.sh -e "$pat" "$root"; then
       echo "::error::public-safety: pattern matched: $pat" >&2
       bad=1
     fi
@@ -42,6 +43,7 @@ if [ "${1:-}" = "--self-test" ]; then
     'jwt: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
     'schema: https://raw.githubusercontent.com/Atlasent/atlasent-api/main/x.json'
     'decided in CROSS-011'
+    'var x={"../atlasent-api/node_modules/.pnpm/js-yaml@4.1.1/lib/a.js"(e){}}'
   )
   for s in "${samples[@]}"; do
     printf '%s\n' "$s" > "$tmp/sample.yaml"

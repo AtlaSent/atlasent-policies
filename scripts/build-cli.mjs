@@ -17,6 +17,11 @@ await build({
   target: "node20",
   minifyWhitespace: true,
   legalComments: "none",
+  // Keep module paths as node_modules/... even when dependencies are
+  // symlinked (pnpm, npm link). esbuild embeds those paths in the bundle, so
+  // without this the output depends on how dependencies were installed and
+  // the dist/ check fails.
+  preserveSymlinks: true,
   banner: {
     js: [
       "// atlasent-policy CLI (Apache-2.0). Built from cli/src by scripts/build-cli.mjs.",
