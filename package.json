@@ -1,0 +1,19 @@
+{
+  "name": "atlasent-policies",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Starter policies for AtlaSent, plus the atlasent-policy CLI as a single bundled file.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "atlasent-policy": "dist/atlasent-policy.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist",
+    "schema",
+    "policies"
+  ]
+}

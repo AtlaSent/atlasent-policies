@@ -63,7 +63,7 @@ rules:
 | `atlasent-policy pull [--out dir]` | read | Download live policies as YAML (adopting existing policies). |
 | `atlasent-policy convert [dir]` | no | Rewrite JSON policy/test files as YAML (or back with `--to json`). |
 
-Set `ATLASENT_API_KEY` for `plan`, `apply` and `pull`. `ATLASENT_BASE_URL` defaults to `https://api.atlasent.io/functions/v1`.
+Run any command with `npx github:Atlasent/atlasent-policies <command>`: the CLI is bundled in this repo, so there is nothing to install beyond Node 20+. Set `ATLASENT_API_KEY` for `plan`, `apply` and `pull`. `ATLASENT_BASE_URL` defaults to `https://api.atlasent.io/functions/v1`.
 
 ### `plan`
 
@@ -149,7 +149,7 @@ jobs:
           api_key: ${{ secrets.ATLASENT_POLICY_WRITE_KEY }}  # policy:write
 ```
 
-Use two keys: a `policy:read` key for PR plans (safe to expose to more workflows) and a `policy:write` key only on the apply job. Pin `cli_version` for reproducible runs.
+Use two keys: a `policy:read` key for PR plans (safe to expose to more workflows) and a `policy:write` key only on the apply job. Pin the action to a release tag (`@v1`) for reproducible runs.
 
 ## Tests
 

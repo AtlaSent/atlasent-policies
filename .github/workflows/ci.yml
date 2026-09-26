@@ -25,11 +25,8 @@ jobs:
       - name: DCO sign-off
         if: github.event_name == 'pull_request'
         run: scripts/check-dco.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
-      # Validate + test every policy through the AtlaSent rule engine.
-      # Disabled until @atlasent/cli is published to npm (the action installs
-      # it from there). To enable: delete the `if: false` line below.
+      # Validate + test every policy through the bundled CLI (no network).
       - name: Validate and test every policy (offline)
-        if: false
         uses: ./actions/policy
         with:
           mode: check

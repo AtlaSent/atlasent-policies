@@ -33,10 +33,6 @@ inputs:
     description: Node version to use
     required: false
     default: "20"
-  cli_version:
-    description: Pinned @atlasent/cli version (recommended for reproducible CI)
-    required: false
-    default: "latest"
 
 outputs:
   plan:
@@ -54,17 +50,17 @@ runs:
       with:
         node-version: ${{ inputs.node_version }}
 
-    - name: Install @atlasent/cli
+    # The CLI ships in this repo as one bundled file (dist/atlasent-policy.mjs),
+    # so nothing is installed from npm.
+    - name: Locate the atlasent-policy CLI
       shell: bash
-      env:
-        CLI_VERSION: ${{ inputs.cli_version }}
-      run: npm install -g "@atlasent/cli@${CLI_VERSION}"
+      run: echo "ATLASENT_POLICY_CLI=${GITHUB_ACTION_PATH}/../../dist/atlasent-policy.mjs" >> "$GITHUB_ENV"
 
     - name: Validate (static analysis, no network)
       shell: bash
       env:
         POLICY_DIR: ${{ inputs.dir }}
-      run: atlasent-policy validate "$POLICY_DIR"
+      run: node "$ATLASENT_POLICY_CLI" validate "$POLICY_DIR"
 
     - name: Test (policy test suites, no network)
       shell: bash
@@ -72,7 +68,7 @@ runs:
         POLICY_DIR: ${{ inputs.dir }}
       run: |
         if find "$POLICY_DIR" -name '*.tests.yaml' -o -name '*.tests.yml' -o -name '*.tests.json' | grep -q .; then
-          atlasent-policy test "$POLICY_DIR"
+          node "$ATLASENT_POLICY_CLI" test "$POLICY_DIR"
         else
           echo "::notice::No *.tests.* suites in $POLICY_DIR — add some so policy logic is checked before it goes live."
         fi
@@ -91,7 +87,7 @@ runs:
           exit 1
         fi
         set +e
-        atlasent-policy plan "$POLICY_DIR" --format markdown --detailed-exitcode > plan.md
+        node "$ATLASENT_POLICY_CLI" plan "$POLICY_DIR" --format markdown --detailed-exitcode > plan.md
         code=$?
         set -e
         cat plan.md >> "$GITHUB_STEP_SUMMARY"
@@ -118,7 +114,7 @@ runs:
           echo "::error::mode=apply needs api_key (a key with policy:write)"
           exit 1
         fi
-        atlasent-policy apply "$POLICY_DIR" --source-digest "$GITHUB_SHA"
+        node "$ATLASENT_POLICY_CLI" apply "$POLICY_DIR" --source-digest "$GITHUB_SHA"
 
 branding:
   icon: check

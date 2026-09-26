@@ -18,21 +18,20 @@ a test suite that runs against the real AtlaSent rule engine. Copy one into your
 | [`identity.privileged.grant`](policies/identity.privileged.grant.yaml) | Security approval, just-in-time grants only (8 hours max) |
 | [`agent.tool.invoke`](policies/agent.tool.invoke.yaml) | Tool allowlist, human review for risky tools, rate limit, deny everything else |
 
-> **Status:** the `atlasent-policy` CLI (npm package `@atlasent/cli`) is not
-> published yet. The policies, tests and schema here are final; the commands
-> below and the GitHub Action work once the CLI is on npm. Until then, CI in
-> this repo runs the leak scan and sign-off checks only.
-
 ## Use a policy
 
 ```sh
 cp atlasent-policies/policies/production.deploy.* your-repo/policies/
 
-atlasent-policy validate policies    # schema + lint, offline
-atlasent-policy test policies        # run the test cases, offline
-atlasent-policy plan policies        # diff against what's live (needs ATLASENT_API_KEY)
-atlasent-policy apply policies       # publish (usually from CI on merge)
+npx github:Atlasent/atlasent-policies validate policies   # schema + lint, offline
+npx github:Atlasent/atlasent-policies test policies       # run the test cases, offline
+npx github:Atlasent/atlasent-policies plan policies       # diff against what's live (needs ATLASENT_API_KEY)
+npx github:Atlasent/atlasent-policies apply policies      # publish (usually from CI on merge)
 ```
+
+The CLI (`atlasent-policy`) ships in this repo as one bundled file,
+[`dist/atlasent-policy.mjs`](dist/atlasent-policy.mjs), so there is nothing else to install. It needs
+Node 20+. Pin a tag (`github:Atlasent/atlasent-policies#v1`) for reproducible runs.
 
 In CI, the action in this repo runs `plan` on pull requests and `apply` on merge:
 
