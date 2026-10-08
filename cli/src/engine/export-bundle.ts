@@ -103,6 +103,20 @@ export interface ExportBundleAuditChainSpec {
  * Current producers include this signed provenance stamp. It remains optional
  * in the SDK input type so older archived bundles can still be verified.
  */
+/**
+ * atlasent-api#4096: per included section, the rows returned against the limit
+ * that section was read under. `possibly_truncated` means the section reached
+ * its limit and may be missing rows. Covered by the outer signature; absent
+ * from exports produced before this field existed.
+ */
+export interface ExportBundleSectionLimits {
+  readonly requested_limit: number;
+  readonly sections: Readonly<
+    Record<string, { readonly returned: number; readonly limit: number; readonly possibly_truncated: boolean }>
+  >;
+  readonly possibly_truncated: boolean;
+}
+
 export interface ExportBundle {
   readonly version: number;
   readonly org_id: string;
@@ -115,6 +129,7 @@ export interface ExportBundle {
   readonly governance_transitions?: ReadonlyArray<ExportBundleGovernanceTransitionRow>;
   readonly admin_log?: ReadonlyArray<unknown>;
   readonly admin_head?: { id: string; entry_hash: string } | null;
+  readonly section_limits?: ExportBundleSectionLimits;
   readonly public_key_pem: string;
   readonly signature: string;
 }
