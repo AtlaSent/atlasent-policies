@@ -24,6 +24,7 @@
  *   - Rich expression language: eq, neq, gt/gte/lt/lte, in/nin, contains,
  *     startswith, endswith, regex, exists, has_any, has_all, subset_of
  *   - Logical combinators: all, any, none, not (nestable)
+ *   - Engine capability gate: engine_feature (see ENGINE_FEATURES)
  *   - Nested path resolution: actor.roles, context.risk.score, etc.
  *   - M-of-N approvals with role gating, self-approval exclusion, temporal validity
  *   - Change windows + freeze windows (time/day/timezone)
@@ -149,7 +150,29 @@ export interface Condition {
   all?: Condition[];
   any?: Condition[];
   none?: Condition[];
+  /**
+   * Engine capability gate (no `field`). True exactly when THIS engine
+   * implements the named feature (see ENGINE_FEATURES).
+   *
+   * It exists so a rule that depends on a newer engine feature cannot be
+   * silently weakened by an older engine. An engine that predates this
+   * operator returns false for it: a condition with no `field` and no
+   * logical combinator has always evaluated false. So a template that puts
+   * `{ engine_feature: "template_change_window" }` in its `when.all` simply
+   * does not match on an older engine, instead of matching while ignoring a
+   * key it cannot read. rules-validate.ts requires that guard on every
+   * template carrying `change_window`.
+   */
+  engine_feature?: string;
 }
+
+/**
+ * Features a policy may require with `Condition.engine_feature`. Append a
+ * name when a rule shape this engine understands would be IGNORED (not
+ * refused) by an older engine. Never remove one: a published bundle that
+ * names it would stop matching.
+ */
+export const ENGINE_FEATURES: readonly string[] = Object.freeze(["template_change_window"]);
 
 export interface WhenClause {
   all?: Condition[];
@@ -192,6 +215,12 @@ export interface TemplateRule {
    * malformed day/hour/date, or names a timezone the runtime does not know
    * also denies `OUTSIDE_CHANGE_WINDOW` (see `isEnforceableTemplateWindow`).
    * The top-level window's more permissive parsing is unchanged.
+   *
+   * An engine that predates this field ignores it, so a template carrying it
+   * must also carry `{ engine_feature: "template_change_window" }` in its
+   * `when.all` (enforced by rules-validate.ts). That condition is false on an
+   * older engine, so there the template does not match at all instead of
+   * granting its decision at any hour.
    */
   change_window?: TimeWindow;
 }
@@ -324,6 +353,14 @@ function evalCondition(
   if (cond.all !== undefined) return cond.all.every((c) => evalCondition(c, actorId, actor, context));
   if (cond.any !== undefined) return cond.any.some((c) => evalCondition(c, actorId, actor, context));
   if (cond.none !== undefined) return !cond.none.some((c) => evalCondition(c, actorId, actor, context));
+
+  // Engine capability gate. It takes no field; one that carries a field is
+  // malformed and fails closed, exactly as it would on an older engine.
+  if (cond.engine_feature !== undefined) {
+    return cond.field === undefined &&
+      typeof cond.engine_feature === "string" &&
+      ENGINE_FEATURES.includes(cond.engine_feature);
+  }
 
   // Fail-closed: a non-logical condition without a `field` has nothing to
   // check and must not silently satisfy a template guard.
