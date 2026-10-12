@@ -172,6 +172,28 @@ export interface TemplateRule {
    * condition they enforce. Validated by scripts/check-condition-tags.mjs.
    */
   condition_id?: string;
+  /**
+   * Server-evaluated change window scoped to THIS template (2026-10-11).
+   *
+   * The top-level `Rules.change_window` gates every evaluation of the bundle.
+   * That cannot express "production needs a window, a test target does not"
+   * in one bundle, so a template may carry its own window instead. When the
+   * template's `when` matches (or the template is unconditional), the
+   * evaluation clock — `EvaluateOptions.now`, which the evaluate handler
+   * takes from its own server clock — must fall inside this window. If it
+   * does not, the evaluation is DENIED `OUTSIDE_CHANGE_WINDOW`; it does not
+   * fall through to a later template.
+   *
+   * The window is never read from request context. A caller-supplied
+   * `context.change_window: true` has no effect on it.
+   *
+   * A window that cannot be checked is not a window that was met: a value
+   * that is not a plain object, declares no constraint at all, carries a
+   * malformed day/hour/date, or names a timezone the runtime does not know
+   * also denies `OUTSIDE_CHANGE_WINDOW` (see `isEnforceableTemplateWindow`).
+   * The top-level window's more permissive parsing is unchanged.
+   */
+  change_window?: TimeWindow;
 }
 
 // ─── Path resolution ────────────────────────────────────────────────
@@ -458,6 +480,82 @@ function parseHM(hm: string): { h: number; m: number } | null {
   const m = /^(\d{1,2}):(\d{2})$/.exec(hm);
   if (!m) return null;
   return { h: Number(m[1]), m: Number(m[2]) };
+}
+
+const TEMPLATE_WINDOW_HH_MM = /^([01]\d|2[0-3]):[0-5]\d$/;
+const TEMPLATE_WINDOW_ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const TEMPLATE_WINDOW_KEYS = new Set(["name", "timezone", "days_of_week", "hours", "date_ranges"]);
+
+/**
+ * A real proleptic-Gregorian calendar date in `YYYY-MM-DD` form, year 0001+.
+ * The shape alone admits `0000-00-00` or `2026-02-31`, which `inWindow`
+ * would still compare lexically and so silently honour.
+ */
+export function isCalendarDate(value: unknown): value is string {
+  if (typeof value !== "string" || !TEMPLATE_WINDOW_ISO_DATE.test(value)) return false;
+  const y = Number(value.slice(0, 4));
+  const m = Number(value.slice(5, 7));
+  const d = Number(value.slice(8, 10));
+  if (y < 1 || m < 1 || m > 12 || d < 1) return false;
+  const leap = (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1];
+  return d <= days;
+}
+
+function isKnownTimeZone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Strict shape check for a template-scoped change window. `inWindow` is
+ * deliberately lenient (an unknown timezone falls back to UTC, an unparseable
+ * hour range is skipped, an empty window matches everything), which is the
+ * historical behavior of the top-level `change_window` and is left alone. A
+ * template window is new, so it is strict from day one: anything that would
+ * make `inWindow` skip a constraint, or match unconditionally, is refused.
+ */
+export function isEnforceableTemplateWindow(win: unknown): win is TimeWindow {
+  if (!win || typeof win !== "object" || Array.isArray(win)) return false;
+  const w = win as Record<string, unknown>;
+  if (Object.keys(w).some((k) => !TEMPLATE_WINDOW_KEYS.has(k))) return false;
+  if ("name" in w && typeof w.name !== "string") return false;
+  if ("timezone" in w && (typeof w.timezone !== "string" || w.timezone === "" || !isKnownTimeZone(w.timezone))) {
+    return false;
+  }
+  let constraints = 0;
+  if ("days_of_week" in w) {
+    const d = w.days_of_week;
+    if (!Array.isArray(d) || d.length === 0) return false;
+    if (!d.every((x) => typeof x === "number" && Number.isInteger(x) && x >= 0 && x <= 6)) return false;
+    constraints++;
+  }
+  if ("hours" in w) {
+    const h = w.hours as Record<string, unknown> | null;
+    if (!h || typeof h !== "object" || Array.isArray(h)) return false;
+    if (typeof h.start !== "string" || !TEMPLATE_WINDOW_HH_MM.test(h.start)) return false;
+    if (typeof h.end !== "string" || !TEMPLATE_WINDOW_HH_MM.test(h.end)) return false;
+    if (h.start === h.end) return false;
+    constraints++;
+  }
+  if ("date_ranges" in w) {
+    const r = w.date_ranges;
+    if (!Array.isArray(r) || r.length === 0) return false;
+    for (const e of r) {
+      if (!e || typeof e !== "object" || Array.isArray(e)) return false;
+      const { start, end } = e as Record<string, unknown>;
+      if (!isCalendarDate(start) || !isCalendarDate(end)) return false;
+      // A reversed range matches no day at all; refuse it rather than let it
+      // read as a window that is merely never open.
+      if (start > end) return false;
+    }
+    constraints++;
+  }
+  return constraints > 0;
 }
 
 export function inWindow(win: TimeWindow, now: Date): boolean {
@@ -1117,6 +1215,8 @@ export function evaluateRules(
       if (!tmpl.when) {
         if (DECISION_VALUES.includes(tmpl.decision as Decision)) {
           trace?.push({ stage: "template", rule: tmpl.name ?? tmpl.decision, matched: true, detail: "unconditional" });
+          const windowDeny = templateWindowDenial(tmpl, now, trace);
+          if (windowDeny) return finalize(windowDeny, trace, fp, riskScore, rollout);
           return finalize(base, trace, fp, riskScore, rollout);
         }
         continue;
@@ -1124,6 +1224,8 @@ export function evaluateRules(
       const matched = evalWhen(tmpl.when, actorId, actor, ctx);
       trace?.push({ stage: "template", rule: tmpl.name ?? tmpl.decision, matched });
       if (matched && DECISION_VALUES.includes(tmpl.decision as Decision)) {
+        const windowDeny = templateWindowDenial(tmpl, now, trace);
+        if (windowDeny) return finalize(windowDeny, trace, fp, riskScore, rollout);
         return finalize(base, trace, fp, riskScore, rollout);
       }
     }
@@ -1131,6 +1233,33 @@ export function evaluateRules(
   }
 
   return finalize({ decision: "allow" }, trace, fp, riskScore, rollout);
+}
+
+/**
+ * A matched template that carries its own `change_window` claims its decision
+ * only inside that window, measured on the evaluation clock (`now`), never on
+ * request context. Outside the window, or with a window that cannot be
+ * checked, the evaluation is denied rather than falling through: a later
+ * template must not be able to allow what this one was scoped to refuse.
+ * Returns undefined when the template has no window or the clock is inside it.
+ */
+function templateWindowDenial(
+  tmpl: TemplateRule,
+  now: Date,
+  trace?: TraceEntry[],
+): RuleEvalResult | undefined {
+  if (!("change_window" in tmpl) || tmpl.change_window === undefined) return undefined;
+  const rule = tmpl.name ?? tmpl.decision;
+  if (!isEnforceableTemplateWindow(tmpl.change_window)) {
+    trace?.push({ stage: "template_change_window", rule, matched: false, detail: "window not enforceable" });
+    return { decision: "deny", deny_code: "OUTSIDE_CHANGE_WINDOW", deny_reason: "Template change window is not enforceable" };
+  }
+  if (!inWindow(tmpl.change_window, now)) {
+    trace?.push({ stage: "template_change_window", rule, matched: false });
+    return { decision: "deny", deny_code: "OUTSIDE_CHANGE_WINDOW", deny_reason: "Outside permitted change window" };
+  }
+  trace?.push({ stage: "template_change_window", rule, matched: true });
+  return undefined;
 }
 
 function finalize(
